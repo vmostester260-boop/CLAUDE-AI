@@ -312,14 +312,28 @@ async def drm_handler(bot: Client, m: Message):
                     raise Exception(f"CP API error (videos) — no 'url' in response. API said: {_rjson}. Check your cptoken.")
                 url = _rjson['url']
             
-            elif 'media-cdn.classplusapp.com' in url or 'media-cdn-alisg.classplusapp.com' in url or 'media-cdn-a.classplusapp.com' in url: 
-                headers = {'host': 'api.classplusapp.com', 'x-access-token': f'{cptoken}', 'accept-language': 'EN', 'api-version': '18', 'app-version': '1.4.73.2', 'build-number': '35', 'connection': 'Keep-Alive', 'content-type': 'application/json', 'device-details': 'Xiaomi_Redmi 7_SDK-32', 'device-id': 'c28d3cb16bbdac01', 'region': 'IN', 'user-agent': 'Mobile-Android', 'webengage-luid': '00000187-6fe4-5d41-a530-26186858be4c', 'accept-encoding': 'gzip'}
-                params = {"url": f"{url}"}
-                response = requests.get('https://api.classplusapp.com/cams/uploader/video/jw-signed-url', headers=headers, params=params)
-                _rjson = response.json()
-                if 'url' not in _rjson:
-                    raise Exception(f"CP API error (media-cdn) — no 'url' in response. API said: {_rjson}. Check your cptoken.")
-                url = _rjson['url']
+            elif 'media-cdn.classplusapp.com' in url or 'media-cdn-alisg.classplusapp.com' in url or 'media-cdn-a.classplusapp.com' in url:
+                _signed = False
+                if cptoken and cptoken not in ("", "cptoken"):
+                    try:
+                        headers = {'host': 'api.classplusapp.com', 'x-access-token': f'{cptoken}', 'accept-language': 'EN', 'api-version': '18', 'app-version': '1.4.73.2', 'build-number': '35', 'connection': 'Keep-Alive', 'content-type': 'application/json', 'device-details': 'Xiaomi_Redmi 7_SDK-32', 'device-id': 'c28d3cb16bbdac01', 'region': 'IN', 'user-agent': 'Mobile-Android', 'webengage-luid': '00000187-6fe4-5d41-a530-26186858be4c', 'accept-encoding': 'gzip'}
+                        params = {"url": f"{url}"}
+                        response = requests.get('https://api.classplusapp.com/cams/uploader/video/jw-signed-url', headers=headers, params=params)
+                        _rjson = response.json()
+                        if 'url' in _rjson:
+                            url = _rjson['url']
+                            _signed = True
+                        else:
+                            print(f"CP signing API failed: {_rjson}. Falling back to direct download with token header.")
+                    except Exception as _e:
+                        print(f"CP signing API exception: {_e}. Falling back to direct download.")
+                # Fallback: download directly passing token as header to yt-dlp
+                if not _signed:
+                    cmd = f'yt-dlp --add-header "x-access-token:{cptoken}" --add-header "referer:https://web.classplusapp.com/" -f "{ytf}" "{url}" -o "{name}.mp4"'
+                    k = await download_video(url, cmd, f"{name}.mp4")
+                    await send_vid(bot, m, cc, k, vidwatermark, thumb, name1, prog, channel_id)
+                    count += 1
+                    continue
 
             if "edge.api.brightcove.com" in url:
                 bcov = f'bcov_auth={cwtoken}'
