@@ -33,5 +33,8 @@ RUN pip3 install --no-cache-dir --upgrade pip \
     && pip3 install --no-cache-dir --upgrade -r sainibots.txt \
     && python3 -m pip install -U yt-dlp
 
+# Force upgrade gunicorn (20.x breaks on Python 3.12 - needs 21+)
+RUN pip3 install --no-cache-dir --force-reinstall "gunicorn>=21.2.0"
+
 # Set the command to run the application
 CMD ["sh", "-c", "gunicorn app:app & python3 modules/main.py"]
