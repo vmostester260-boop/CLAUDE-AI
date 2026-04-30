@@ -332,7 +332,7 @@ async def drm_handler(bot: Client, m: Message):
                     _ytf = f"b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba"
                     cmd = f'yt-dlp --add-header "x-access-token:{cptoken}" --add-header "referer:https://web.classplusapp.com/" -f "{_ytf}" "{url}" -o "{name}.mp4"'
                     k = await helper.download_video(url, cmd, f"{name}.mp4")
-                    await send_vid(bot, m, cc, k, vidwatermark, thumb, name1, prog, channel_id)
+                    await helper.send_vid(bot, m, cc, k, vidwatermark, thumb, name1, prog, channel_id)
                     count += 1
                     continue
 
