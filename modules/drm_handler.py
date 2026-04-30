@@ -327,14 +327,10 @@ async def drm_handler(bot: Client, m: Message):
                             print(f"CP signing API failed: {_rjson}. Falling back to direct download with token header.")
                     except Exception as _e:
                         print(f"CP signing API exception: {_e}. Falling back to direct download.")
-                # Fallback: download directly passing token as header to yt-dlp
+                # Fallback: cmd will be built below using token as header
                 if not _signed:
                     _ytf = f"b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba"
                     cmd = f'yt-dlp --add-header "x-access-token:{cptoken}" --add-header "referer:https://web.classplusapp.com/" -f "{_ytf}" "{url}" -o "{name}.mp4"'
-                    k = await helper.download_video(url, cmd, f"{name}.mp4")
-                    await helper.send_vid(bot, m, cc, k, vidwatermark, thumb, name1, prog, channel_id)
-                    count += 1
-                    continue
 
             if "edge.api.brightcove.com" in url:
                 bcov = f'bcov_auth={cwtoken}'
