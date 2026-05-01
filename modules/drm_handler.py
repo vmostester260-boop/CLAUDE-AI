@@ -552,23 +552,26 @@ async def drm_handler(bot: Client, m: Message):
                     prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
                     
                     if 'media-cdn.classplusapp' in url or 'media-cdn-alisg.classplusapp' in url or 'media-cdn-a.classplusapp' in url:
-                        # aria2c (used by download_video) doesn't pass headers to HLS segments
-                        # Use ffmpeg directly which properly passes headers to every segment
                         output_file = f"{name}.mp4"
-                        ffmpeg_cmd = (
-                            f'ffmpeg -y '
-                            f'-headers "x-access-token: {cptoken}\\r\\nReferer: https://web.classplusapp.com/\\r\\n" '
-                            f'-i "{url}" -c copy "{output_file}"'
+                        # MUST use list form + real CRLF — shell=True with \\r\\n sends literal text not CRLF
+                        headers_str = f"x-access-token: {cptoken}\r\nReferer: https://web.classplusapp.com/\r\n"
+                        ff_result = subprocess.run(
+                            ['ffmpeg', '-y', '-headers', headers_str, '-i', url, '-c', 'copy', output_file],
+                            capture_output=True, text=True
                         )
-                        subprocess.run(ffmpeg_cmd, shell=True)
                         if not os.path.isfile(output_file):
-                            raise Exception(f"Download failed for media-cdn URL. yt-dlp/ffmpeg could not fetch the stream. Token may be invalid or URL is expired.")
+                            # Fallback: yt-dlp without aria2c
+                            ytdlp_cmd = f'yt-dlp --no-part --add-header "x-access-token:{cptoken}" --add-header "referer:https://web.classplusapp.com/" -f "{ytf}" "{url}" -o "{output_file}"'
+                            subprocess.run(ytdlp_cmd, shell=True)
+                        if not os.path.isfile(output_file):
+                            err_detail = (ff_result.stderr or "")[-400:].strip()
+                            raise Exception(f"media-cdn download failed. ffmpeg: {err_detail}")
                         filename = output_file
                     else:
                         res_file = await helper.download_video(url, cmd, name)
                         filename = res_file
                         if not os.path.isfile(filename):
-                            raise Exception(f"Download failed — file not found after download. yt-dlp may have failed silently.")
+                            raise Exception(f"Download failed — file not found after download.")
                     
                     await prog1.delete(True)
                     await prog.delete(True)
