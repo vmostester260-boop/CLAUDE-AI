@@ -361,6 +361,146 @@ async def drm_handler(bot: Client, m: Message):
                 cmd = f'yt-dlp --add-header "x-access-token:{cptoken}" --add-header "referer:https://web.classplusapp.com/" -f "{ytf}" "{url}" -o "{name}.mp4"'
             else:
                 cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
+#...........................................................................................................................be.com/oembed?url={url}&format=json"
+                    response = requests.get(oembed_url)
+                    oembed_data = response.json()
+                    audio_title = oembed_data.get('title', 'YouTube Video')
+                    audio_title = audio_title.replace("_", " ")
+                    name = f'{audio_title[:60]}'
+                    name1 = f'{audio_title[:60]}'
+                    namef = f'{audio_title[:60]}'
+                    thumb = oembed_data.get('thumbnail_url', '')
+                    if thumb.startswith("http://") or thumb.startswith("https://"):
+                        getstatusoutput(f"wget '{thumb}' -O 'thumb.jpg'")
+                        thumb = "thumb.jpg"
+                else:
+                    name = f'{name1[:60]}'
+                    namef = f'{name1[:60]}'
+            else:
+                if topic == "/yes":
+                    raw_title = links[i][0]
+                    t_match = re.search(r"[\(\[]([^\)\]]+)[\)\]]", raw_title)
+                    if t_match:
+                        t_name = t_match.group(1).strip()
+                        v_name = re.sub(r"^[\(\[][^\)\]]+[\)\]]\s*", "", raw_title)
+                        v_name = re.sub(r"[\(\[][^\)\]]+[\)\]]", "", v_name)
+                        v_name = re.sub(r":.*", "", v_name).strip()
+                    else:
+                        t_name = "Untitled"
+                        v_name = re.sub(r":.*", "", raw_title).strip()
+                    
+                    if endfilename == "/d":
+                        name = f'{str(count).zfill(3)}) {name1[:60]}'
+                        namef = f'{v_name}'
+                    else:
+                        name = f'{str(count).zfill(3)}) {name1[:60]} {endfilename}'
+                        namef = f'{v_name} {endfilename}'
+                else:
+                    if endfilename == "/d":
+                        name = f'{str(count).zfill(3)}) {name1[:60]}'
+                        namef = f'{name1[:60]}'
+                    else:
+                        name = f'{str(count).zfill(3)}) {name1[:60]} {endfilename}'
+                        namef = f'{name1[:60]} {endfilename}'
+                        
+#........................................................................................................................................................................................
+            if "visionias" in url:
+                async with ClientSession() as session:
+                    async with session.get(url, headers={'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9', 'Accept-Language': 'en-US,en;q=0.9', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'Pragma': 'no-cache', 'Referer': 'http://www.visionias.in/', 'Sec-Fetch-Dest': 'iframe', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'cross-site', 'Upgrade-Insecure-Requests': '1', 'User-Agent': 'Mozilla/5.0 (Linux; Android 12; RMX2121) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36', 'sec-ch-ua': '"Chromium";v="107", "Not=A?Brand";v="24"', 'sec-ch-ua-mobile': '?1', 'sec-ch-ua-platform': '"Android"',}) as resp:
+                        text = await resp.text()
+                        url = re.search(r"(https://.*?playlist.m3u8.*?)\"", text).group(1)
+
+            if "acecwply" in url:
+                cmd = f'yt-dlp -o "{name}.%(ext)s" -f "bestvideo[height<={raw_text2}]+bestaudio" --hls-prefer-ffmpeg --no-keep-video --remux-video mkv --no-warning "{url}"'
+         
+            elif "https://cpvod.testbook.com/" in url or "classplusapp.com/drm/" in url:
+                url = url.replace("https://cpvod.testbook.com/","https://media-cdn.classplusapp.com/drm/")
+                try:
+                    # ── Local DRM key extraction (replaces dead sainibotsdrm.vercel.app) ──
+                    from drm_keys import get_drm_keys
+                    data = get_drm_keys(url, cptoken, wvd_path="device.wvd")
+                    if data.get("keys") and "url" in data:
+                        mpd = data.get('url')
+                        keys = data.get('keys')
+                        url = mpd
+                        keys_string = " ".join([f"--key {key}" for key in keys])
+                    else:
+                        raise Exception("DRM key extraction returned no keys. Check your cptoken or device.wvd file.")
+                        mpd = None
+                        keys = None
+                        url = None
+                        keys_string = None
+                except Exception as e:
+                    await bot.send_message(channel_id, f'⚠️**Downloading Failed**⚠️\n**Name** =>> `{str(count).zfill(3)} {name1}`\n**Url** =>> {url}\n\n<blockquote expandable><i><b>Failed Reason to sign url: {str(e)}</b></i></blockquote>', disable_web_page_preview=True)
+                    count += 1
+                    failed_count += 1
+                    continue
+                    
+            elif "tencdn.classplusapp" in url:
+                headers = {'host': 'api.classplusapp.com', 'x-access-token': f'{cptoken}', 'accept-language': 'EN', 'api-version': '18', 'app-version': '1.4.73.2', 'build-number': '35', 'connection': 'Keep-Alive', 'content-type': 'application/json', 'device-details': 'Xiaomi_Redmi 7_SDK-32', 'device-id': 'c28d3cb16bbdac01', 'region': 'IN', 'user-agent': 'Mobile-Android', 'webengage-luid': '00000187-6fe4-5d41-a530-26186858be4c', 'accept-encoding': 'gzip'}
+                params = {"url": f"{url}"}
+                response = requests.get('https://api.classplusapp.com/cams/uploader/video/jw-signed-url', headers=headers, params=params)
+                _rjson = response.json()
+                if 'url' not in _rjson:
+                    raise Exception(f"CP API error (tencdn) — no 'url' in response. API said: {_rjson}. Check your cptoken.")
+                url = _rjson['url']
+           
+            elif 'videos.classplusapp' in url:
+                _resp = requests.get(f'https://api.classplusapp.com/cams/uploader/video/jw-signed-url?url={url}', headers={'x-access-token': f'{cptoken}'})
+                _rjson = _resp.json()
+                if 'url' not in _rjson:
+                    raise Exception(f"CP API error (videos) — no 'url' in response. API said: {_rjson}. Check your cptoken.")
+                url = _rjson['url']
+            
+            elif 'media-cdn.classplusapp.com' in url or 'media-cdn-alisg.classplusapp.com' in url or 'media-cdn-a.classplusapp.com' in url:
+                _signed = False
+                if cptoken and cptoken not in ("", "cptoken"):
+                    try:
+                        headers = {'host': 'api.classplusapp.com', 'x-access-token': f'{cptoken}', 'accept-language': 'EN', 'api-version': '18', 'app-version': '1.4.73.2', 'build-number': '35', 'connection': 'Keep-Alive', 'content-type': 'application/json', 'device-details': 'Xiaomi_Redmi 7_SDK-32', 'device-id': 'c28d3cb16bbdac01', 'region': 'IN', 'user-agent': 'Mobile-Android', 'webengage-luid': '00000187-6fe4-5d41-a530-26186858be4c', 'accept-encoding': 'gzip'}
+                        params = {"url": f"{url}"}
+                        response = requests.get('https://api.classplusapp.com/cams/uploader/video/jw-signed-url', headers=headers, params=params)
+                        _rjson = response.json()
+                        if 'url' in _rjson:
+                            url = _rjson['url']
+                            _signed = True
+                        else:
+                            print(f"CP signing API failed: {_rjson}. Falling back to direct download with token header.")
+                    except Exception as _e:
+                        print(f"CP signing API exception: {_e}. Falling back to direct download.")
+                # Fallback: cmd will be built below using token as header
+                if not _signed:
+                    _ytf = f"b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba"
+                    cmd = f'yt-dlp --add-header "x-access-token:{cptoken}" --add-header "referer:https://web.classplusapp.com/" -f "{_ytf}" "{url}" -o "{name}.mp4"'
+
+            if "edge.api.brightcove.com" in url:
+                bcov = f'bcov_auth={cwtoken}'
+                url = url.split("bcov_auth")[0]+bcov
+
+            #elif "d1d34p8vz63oiq" in url or "sec1.pw.live" in url:
+            elif "childId" in url and "parentId" in url:
+                url = f"https://anonymouspwplayer-0e5a3f512dec.herokuapp.com/pw?url={url}&token={pwtoken}"
+                                      
+            elif 'encrypted.m' in url:
+                appxkey = url.split('*')[1]
+                url = url.split('*')[0]
+
+            if "youtu" in url:
+                ytf = f"bv*[height<={raw_text2}][ext=mp4]+ba[ext=m4a]/b[height<=?{raw_text2}]"
+            elif "embed" in url:
+                ytf = f"bestvideo[height<={raw_text2}]+bestaudio/best[height<={raw_text2}]"
+            else:
+                ytf = f"b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba"
+           
+            if "jw-prod" in url:
+                cmd = f'yt-dlp -o "{name}.mp4" "{url}"'
+            elif "webvideos.classplusapp." in url:
+               cmd = f'yt-dlp --add-header "referer:https://web.classplusapp.com/" --add-header "x-cdn-tag:empty" -f "{ytf}" "{url}" -o "{name}.mp4"'
+            elif "youtube.com" in url or "youtu.be" in url:
+                cmd = f'yt-dlp --cookies youtube_cookies.txt -f "{ytf}" "{url}" -o "{name}".mp4'
+            elif "media-cdn.classplusapp" in url or "media-cdn-alisg.classplusapp" in url or "media-cdn-a.classplusapp" in url:
+                cmd = f'yt-dlp --add-header "x-access-token:{cptoken}" --add-header "referer:https://web.classplusapp.com/" -f "{ytf}" "{url}" -o "{name}.mp4"'
+            else:
+                cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
 #........................................................................................................................................................................................
             try:
                 if m.text:
