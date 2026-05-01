@@ -555,8 +555,8 @@ async def drm_handler(bot: Client, m: Message):
                         output_file = f"{name}.mp4"
                         
                         if 'token=' in url:
-                            # URL already has JWT token embedded — download directly, NO extra headers
-                            ytdlp_cmd = f'yt-dlp --no-part -f "{ytf}" "{url}" -o "{output_file}"'
+                            # URL already has JWT token embedded — still need Referer for CDN (403 fix)
+                            ytdlp_cmd = f'yt-dlp --no-part --add-header "referer:https://web.classplusapp.com/" --add-header "origin:https://web.classplusapp.com" -f "{ytf}" "{url}" -o "{output_file}"'
                             dl_result = subprocess.run(ytdlp_cmd, shell=True, capture_output=True, text=True)
                             err_detail = dl_result.stderr[-400:].strip() if dl_result.stderr else ""
                         else:
