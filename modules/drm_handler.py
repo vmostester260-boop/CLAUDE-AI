@@ -550,8 +550,26 @@ async def drm_handler(bot: Client, m: Message):
                 else:
                     prog = await bot.send_message(channel_id, Show, disable_web_page_preview=True)
                     prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
-                    res_file = await helper.download_video(url, cmd, name)
-                    filename = res_file
+                    
+                    if 'media-cdn.classplusapp' in url or 'media-cdn-alisg.classplusapp' in url or 'media-cdn-a.classplusapp' in url:
+                        # aria2c (used by download_video) doesn't pass headers to HLS segments
+                        # Use ffmpeg directly which properly passes headers to every segment
+                        output_file = f"{name}.mp4"
+                        ffmpeg_cmd = (
+                            f'ffmpeg -y '
+                            f'-headers "x-access-token: {cptoken}\\r\\nReferer: https://web.classplusapp.com/\\r\\n" '
+                            f'-i "{url}" -c copy "{output_file}"'
+                        )
+                        subprocess.run(ffmpeg_cmd, shell=True)
+                        if not os.path.isfile(output_file):
+                            raise Exception(f"Download failed for media-cdn URL. yt-dlp/ffmpeg could not fetch the stream. Token may be invalid or URL is expired.")
+                        filename = output_file
+                    else:
+                        res_file = await helper.download_video(url, cmd, name)
+                        filename = res_file
+                        if not os.path.isfile(filename):
+                            raise Exception(f"Download failed — file not found after download. yt-dlp may have failed silently.")
+                    
                     await prog1.delete(True)
                     await prog.delete(True)
                     await helper.send_vid(bot, m, cc, filename, vidwatermark, thumb, name, prog, channel_id)
