@@ -580,17 +580,36 @@ async def drm_handler(bot: Client, m: Message):
                                 dl_result = subprocess.run(ytdlp_cmd, shell=True, capture_output=True, text=True)
                                 err_detail = dl_result.stderr[-400:].strip() if dl_result.stderr else err_detail
                         else:
-                            # No token in URL — authenticate via x-access-token header
-                            # MUST use list form + real Python CRLF (not \\r\\n shell string)
-                            headers_str = f"x-access-token: {cptoken}\r\nReferer: https://web.classplusapp.com/\r\n"
+                            # No token= in URL. Try 3 strategies in order:
+
+                            # Strategy 1: ffmpeg with x-access-token + Referer (for token-gated CDN)
+                            headers_str = f"x-access-token: {cptoken}\r\nReferer: https://web.classplusapp.com/\r\nOrigin: https://web.classplusapp.com\r\n"
                             ff_result = subprocess.run(
                                 ['ffmpeg', '-y', '-headers', headers_str, '-i', url, '-c', 'copy', output_file],
                                 capture_output=True, text=True
                             )
                             err_detail = ff_result.stderr[-400:].strip() if ff_result.stderr else ""
+
                             if not os.path.isfile(output_file):
-                                # Fallback: yt-dlp without aria2c
-                                ytdlp_cmd = f'yt-dlp --no-part --add-header "x-access-token:{cptoken}" --add-header "referer:https://web.classplusapp.com/" -f "{ytf}" "{url}" -o "{output_file}"'
+                                # Strategy 2: ffmpeg with Referer only — for path-signed CDN URLs (/cc/ type)
+                                # that don't need x-access-token, just a proper browser Referer
+                                headers_ref = "Referer: https://web.classplusapp.com/\r\nOrigin: https://web.classplusapp.com\r\n"
+                                ff2 = subprocess.run(
+                                    ['ffmpeg', '-y', '-headers', headers_ref, '-i', url, '-c', 'copy', output_file],
+                                    capture_output=True, text=True
+                                )
+                                err_detail = ff2.stderr[-400:].strip() if ff2.stderr else err_detail
+
+                            if not os.path.isfile(output_file):
+                                # Strategy 3: yt-dlp with --downloader ffmpeg (MUST have this flag —
+                                # without it yt-dlp uses [generic] extractor which fetches the m3u8
+                                # as a webpage and gets 403)
+                                ytdlp_cmd = (
+                                    f'yt-dlp --no-part --downloader ffmpeg '
+                                    f'--add-header "x-access-token:{cptoken}" '
+                                    f'--add-header "referer:https://web.classplusapp.com/" '
+                                    f'-f "{ytf}" "{url}" -o "{output_file}"'
+                                )
                                 dl2 = subprocess.run(ytdlp_cmd, shell=True, capture_output=True, text=True)
                                 err_detail = dl2.stderr[-400:].strip() if dl2.stderr else err_detail
                         
