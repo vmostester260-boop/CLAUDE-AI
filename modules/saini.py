@@ -22,12 +22,17 @@ from Crypto.Util.Padding import unpad
 from base64 import b64decode
 
 def duration(filename):
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"Video file not found: {filename}")
     result = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
                              "format=duration", "-of",
                              "default=noprint_wrappers=1:nokey=1", filename],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT)
-    return float(result.stdout)
+    try:
+        return float(result.stdout)
+    except (ValueError, TypeError):
+        raise ValueError(f"ffprobe failed on '{filename}': {result.stdout.decode().strip()}")
  
 def exec(cmd):
         process = subprocess.run(cmd, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
