@@ -330,7 +330,9 @@ async def drm_handler(bot: Client, m: Message):
                 # Fallback: cmd will be built below using token as header
                 if not _signed:
                     _ytf = f"b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba"
-                    cmd = f'yt-dlp --add-header "x-access-token:{cptoken}" --add-header "referer:https://web.classplusapp.com/" -f "{_ytf}" "{url}" -o "{name}.mp4"'
+                    # --downloader ffmpeg prevents yt-dlp [generic] extractor from issuing a
+                    # bare webpage GET that the CDN rejects with 403
+                    cmd = f'yt-dlp --downloader ffmpeg --add-header "x-access-token:{cptoken}" --add-header "referer:https://web.classplusapp.com/" -f "{_ytf}" "{url}" -o "{name}.mp4"'
 
             if "edge.api.brightcove.com" in url:
                 bcov = f'bcov_auth={cwtoken}'
@@ -358,7 +360,7 @@ async def drm_handler(bot: Client, m: Message):
             elif "youtube.com" in url or "youtu.be" in url:
                 cmd = f'yt-dlp --cookies youtube_cookies.txt -f "{ytf}" "{url}" -o "{name}".mp4'
             elif "media-cdn.classplusapp" in url or "media-cdn-alisg.classplusapp" in url or "media-cdn-a.classplusapp" in url:
-                cmd = f'yt-dlp --add-header "x-access-token:{cptoken}" --add-header "referer:https://web.classplusapp.com/" -f "{ytf}" "{url}" -o "{name}.mp4"'
+                cmd = f'yt-dlp --downloader ffmpeg --add-header "x-access-token:{cptoken}" --add-header "referer:https://web.classplusapp.com/" -f "{ytf}" "{url}" -o "{name}.mp4"'
             else:
                 cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
 #........................................................................................................................................................................................
@@ -555,10 +557,28 @@ async def drm_handler(bot: Client, m: Message):
                         output_file = f"{name}.mp4"
                         
                         if 'token=' in url:
-                            # URL already has JWT token embedded — still need Referer for CDN (403 fix)
-                            ytdlp_cmd = f'yt-dlp --no-part --add-header "referer:https://web.classplusapp.com/" --add-header "origin:https://web.classplusapp.com" -f "{ytf}" "{url}" -o "{output_file}"'
-                            dl_result = subprocess.run(ytdlp_cmd, shell=True, capture_output=True, text=True)
-                            err_detail = dl_result.stderr[-400:].strip() if dl_result.stderr else ""
+                            # URL already has JWT token embedded.
+                            # yt-dlp's [generic] extractor fetches the URL as a webpage → CDN returns 403.
+                            # Fix: use ffmpeg directly — it treats .m3u8 as a raw HLS stream, not a webpage.
+                            ff_result = subprocess.run(
+                                ['ffmpeg', '-y',
+                                 '-referer', 'https://web.classplusapp.com/',
+                                 '-headers', 'Origin: https://web.classplusapp.com\r\n',
+                                 '-i', url,
+                                 '-c', 'copy', output_file],
+                                capture_output=True, text=True
+                            )
+                            err_detail = ff_result.stderr[-400:].strip() if ff_result.stderr else ""
+                            if not os.path.isfile(output_file):
+                                # Fallback: yt-dlp with --downloader ffmpeg forces ffmpeg protocol handler
+                                ytdlp_cmd = (
+                                    f'yt-dlp --no-part --downloader ffmpeg '
+                                    f'--add-header "referer:https://web.classplusapp.com/" '
+                                    f'--add-header "origin:https://web.classplusapp.com" '
+                                    f'-f "{ytf}" "{url}" -o "{output_file}"'
+                                )
+                                dl_result = subprocess.run(ytdlp_cmd, shell=True, capture_output=True, text=True)
+                                err_detail = dl_result.stderr[-400:].strip() if dl_result.stderr else err_detail
                         else:
                             # No token in URL — authenticate via x-access-token header
                             # MUST use list form + real Python CRLF (not \\r\\n shell string)
